@@ -1,7 +1,9 @@
 #Place a list of target domains or URLs below, one per line.
-#https://businessinsider.com
 #https://chicagotribune.com
 #http://latimes.com/sports
 #washingtonpost.com
 #http://nytimes.com/index.html
-localhosttribune.com
+#localhosttribune.com
+http://www.businessinsider.com
+http://www.thisisinsider.com
+http://uk.businessinsider.com

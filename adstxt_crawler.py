@@ -50,6 +50,62 @@ from urlparse import urlparse
 import requests
 
 #################################################################
+# FUNCTION process_row_to_db.
+#  handle one row and push to the DB
+#
+#################################################################
+
+def process_row_to_db(conn, data_row, hostname):
+    insert_stmt = "INSERT OR IGNORE INTO adstxt (SITE_DOMAIN, EXCHANGE_DOMAIN, SELLER_ACCOUNT_ID, ACCOUNT_TYPE, TAG_ID) VALUES (?, ?, ?, ?, ? );"
+    exchange_host     = ''
+    seller_account_id = ''
+    account_type      = ''
+    tag_id            = ''
+
+    if len(data_row) >= 3:
+        exchange_host     = data_row[0].lower()
+        seller_account_id = data_row[1].lower()
+        account_type      = data_row[2].lower()
+
+    if len(data_row) == 4:
+        tag_id            = data_row[3].lower()
+
+    #data validation heurstics
+    data_valid = 1;
+
+    # Minimum length of a domain name is 1 character, not including extensions.
+    # Domain Name Rules - Nic AG
+    # www.nic.ag/rules.htm
+    if(len(hostname) < 3):
+        data_valid = 0
+
+    if(len(exchange_host) < 3):
+        data_valid = 0
+
+    # could be single digit integers
+    if(len(seller_account_id) < 1):
+        data_valid = 0
+
+    ## ads.txt supports 'DIRECT' and 'RESELLER'
+    if(len(account_type) < 6):
+        data_valid = 0
+
+    if(data_valid > 0):
+        logging.debug( "%s | %s | %s | %s | %s" % (hostname, exchange_host, seller_account_id, account_type, tag_id))
+
+        # Insert a row of data using bind variables (protect against sql injection)
+        c = conn.cursor()
+        c.execute(insert_stmt, (hostname, exchange_host, seller_account_id, account_type, tag_id))
+
+        # Save (commit) the changes
+        conn.commit()
+        return 1
+
+    return 0
+
+# end process_row_to_db  #####
+
+#################################################################
 # FUNCTION crawl_to_db.
 #  crawl the URLs, parse the data, validate and dump to a DB
 #
@@ -58,7 +114,6 @@ import requests
 def crawl_to_db(conn, crawl_url_queue):
 
     rowcnt = 0
-    insert_stmt = "INSERT OR IGNORE INTO adstxt (SITE_DOMAIN, EXCHANGE_DOMAIN, SELLER_ACCOUNT_ID, ACCOUNT_TYPE, TAG_ID) VALUES (?, ?, ?, ?, ? );"
 
     for aurl in crawl_url_queue:
         ahost = crawl_url_queue[aurl]
@@ -77,59 +132,32 @@ def crawl_to_db(conn, crawl_url_queue):
                 tmp_csv_file.close()
 
             with open(tmpfile, 'rb') as tmp_csv_file:
-                data_reader = csv.reader(tmp_csv_file, delimiter=',', quotechar='|')
-                for row in data_reader:
+                #read the line, split on first comment and keep what is to the left (if any found)
+                line_reader = csv.reader(tmp_csv_file, delimiter='#', quotechar='|')
 
-                    if len(row) > 0 and row[0].startswith( '#' ):
-                        continue
+                for line in line_reader:
+                    logging.debug("DATA:  %s" % line)
 
-                    exchange_host     = ''
-                    seller_account_id = ''
-                    account_type      = ''
-                    tag_id            = ''
+                    try:
+                        data_line = line[0]
+                    except:
+                        data_line = "";
 
-                    if len(row) >= 3:
-                        exchange_host     = row[0]
-                        seller_account_id = row[1]
-                        account_type      = row[2]
+                    #determine delimiter, conservative = do it per row
+                    if data_line.find(",") != -1:
+                        data_delimiter = ','
+                    elif data_line.find("\t") != -1:
+                        data_delimiter = '\t'
+                    else:
+                        data_delimiter = ' '
 
-                    if len(row) == 4:
-                        tag_id            = row[3]
+                    data_reader = csv.reader([data_line], delimiter=',', quotechar='|')
+                    for row in data_reader:
 
+                        if len(row) > 0 and row[0].startswith( '#' ):
+                            continue
 
-                    data_valid = 1;
-
-
-                    #data validation heurstics
-
-                    # Minimum length of a domain name is 1 character, not including extensions.
-                    # Domain Name Rules - Nic AG
-                    # www.nic.ag/rules.htm
-                    if(len(ahost) < 3):
-                        data_valid = 0
-
-                    if(len(exchange_host) < 3):
-                        data_valid = 0
-
-                    # could be single digit integers
-                    if(len(seller_account_id) < 1):
-                        data_valid = 0
-
-                    ## ads.txt supports 'DIRECT' and 'RESELLER'
-                    if(len(account_type) < 6):
-                        data_valid = 0
-
-
-                    if(data_valid > 0):
-                        logging.debug( "%s | %s | %s | %s | %s" % (ahost, exchange_host, seller_account_id, account_type, tag_id))
-
-                        # Insert a row of data using bind variables (protect against sql injection)
-                        c = conn.cursor()
-                        c.execute(insert_stmt, (ahost, exchange_host, seller_account_id, account_type, tag_id))
-                        rowcnt = rowcnt + 1
-
-                        # Save (commit) the changes
-                        conn.commit()
+                        rowcnt = rowcnt + process_row_to_db(conn, row, ahost)
 
     return rowcnt
 
