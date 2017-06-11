@@ -55,8 +55,8 @@ import requests
 #
 #################################################################
 
-def process_row_to_db(conn, data_row, hostname):
-    insert_stmt = "INSERT OR IGNORE INTO adstxt (SITE_DOMAIN, EXCHANGE_DOMAIN, SELLER_ACCOUNT_ID, ACCOUNT_TYPE, TAG_ID) VALUES (?, ?, ?, ?, ? );"
+def process_row_to_db(conn, data_row, comment, hostname):
+    insert_stmt = "INSERT OR IGNORE INTO adstxt (SITE_DOMAIN, EXCHANGE_DOMAIN, SELLER_ACCOUNT_ID, ACCOUNT_TYPE, TAG_ID, ENTRY_COMMENT) VALUES (?, ?, ?, ?, ?, ? );"
     exchange_host     = ''
     seller_account_id = ''
     account_type      = ''
@@ -91,11 +91,11 @@ def process_row_to_db(conn, data_row, hostname):
         data_valid = 0
 
     if(data_valid > 0):
-        logging.debug( "%s | %s | %s | %s | %s" % (hostname, exchange_host, seller_account_id, account_type, tag_id))
+        logging.debug( "%s | %s | %s | %s | %s | %s" % (hostname, exchange_host, seller_account_id, account_type, tag_id, comment))
 
         # Insert a row of data using bind variables (protect against sql injection)
         c = conn.cursor()
-        c.execute(insert_stmt, (hostname, exchange_host, seller_account_id, account_type, tag_id))
+        c.execute(insert_stmt, (hostname, exchange_host, seller_account_id, account_type, tag_id, comment))
 
         # Save (commit) the changes
         conn.commit()
@@ -134,6 +134,7 @@ def crawl_to_db(conn, crawl_url_queue):
             with open(tmpfile, 'rb') as tmp_csv_file:
                 #read the line, split on first comment and keep what is to the left (if any found)
                 line_reader = csv.reader(tmp_csv_file, delimiter='#', quotechar='|')
+                comment = ''
 
                 for line in line_reader:
                     logging.debug("DATA:  %s" % line)
@@ -157,7 +158,10 @@ def crawl_to_db(conn, crawl_url_queue):
                         if len(row) > 0 and row[0].startswith( '#' ):
                             continue
 
-                        rowcnt = rowcnt + process_row_to_db(conn, row, ahost)
+                        if (len(line) > 1) and (len(line[1]) > 0):
+                             comment = line[1]
+
+                        rowcnt = rowcnt + process_row_to_db(conn, row, comment, ahost)
 
     return rowcnt
 
@@ -176,7 +180,7 @@ def load_url_queue(csvfilename, url_queue):
         targets_reader = csv.reader(csvfile, delimiter=',', quotechar='|')
         for row in targets_reader:
 
-            if row[0].startswith( '#' ):
+            if len(row) < 1 or row[0].startswith( '#' ):
                 continue
 
             for item in row:
@@ -190,22 +194,26 @@ def load_url_queue(csvfilename, url_queue):
                     host = item
                     logging.info( "HOST: %s" % item)
 
+            skip = 0
+
+            try:
                 #print "Checking DNS: %s" % host
                 ip = socket.gethostbyname(host)
 
-            skip = 0
-            if "127.0.0" in ip:
+                if "127.0.0" in ip:
+                    skip = 1
+                elif "0.0.0.0" in ip:
+                    skip = 1
+                else:
+                    logging.info("  Validated Host IP: %s" % ip)
+            except:
                 skip = 1
-            elif "0.0.0.0" in ip:
-                skip = 1
-            else:
-                logging.info("  Validated Host IP: %s" % ip)
 
-            ads_txt_url = 'http://{thehost}/ads.txt'.format(thehost=host)
-
-            logging.info("  pushing %s" % ads_txt_url)
-            url_queue[ads_txt_url] = host
-            cnt = cnt + 1
+            if(skip < 1):
+                ads_txt_url = 'http://{thehost}/ads.txt'.format(thehost=host)
+                logging.info("  pushing %s" % ads_txt_url)
+                url_queue[ads_txt_url] = host
+                cnt = cnt + 1
 
     return cnt
 
