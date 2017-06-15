@@ -116,7 +116,7 @@ def crawl_to_db(conn, crawl_url_queue):
     rowcnt = 0
 
     myheaders = {
-            'User-Agent': 'AdsTxtCrawler/1.0; +https://github.com/InteractiveAdvertisingBureau/adstxtcrawler)',
+            'User-Agent': 'AdsTxtCrawler/1.0; +https://github.com/InteractiveAdvertisingBureau/adstxtcrawler',
             'Accept': 'text/plain',
         }
 
