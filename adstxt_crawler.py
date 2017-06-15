@@ -115,13 +115,20 @@ def crawl_to_db(conn, crawl_url_queue):
 
     rowcnt = 0
 
+    myheaders = {
+            'User-Agent': 'AdsTxtCrawler/1.0; +https://github.com/InteractiveAdvertisingBureau/adstxtcrawler)',
+            'Accept': 'text/plain',
+        }
+
     for aurl in crawl_url_queue:
         ahost = crawl_url_queue[aurl]
-        logging.info("  %s : %s " % (aurl, ahost))
-        r = requests.get(aurl)
+        logging.info(" Crawling  %s : %s " % (aurl, ahost))
+        r = requests.get(aurl, headers=myheaders)
         logging.info("  %d" % r.status_code)
 
         if(r.status_code == 200):
+            logging.debug("-------------")
+            logging.debug(r.request.headers)
             logging.debug("-------------")
             logging.debug("%s" % r.text)
             logging.debug("-------------")
@@ -201,7 +208,7 @@ def load_url_queue(csvfilename, url_queue):
                 ip = socket.gethostbyname(host)
 
                 if "127.0.0" in ip:
-                    skip = 1
+                    skip = 0 #swap to 1 to skip localhost testing
                 elif "0.0.0.0" in ip:
                     skip = 1
                 else:
