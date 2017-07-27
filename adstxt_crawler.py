@@ -48,6 +48,7 @@ from optparse import OptionParser
 from urlparse import urlparse
 #pip install requests
 import requests
+import re
 
 #################################################################
 # FUNCTION process_row_to_db.
@@ -123,10 +124,36 @@ def crawl_to_db(conn, crawl_url_queue):
     for aurl in crawl_url_queue:
         ahost = crawl_url_queue[aurl]
         logging.info(" Crawling  %s : %s " % (aurl, ahost))
-        r = requests.get(aurl, headers=myheaders)
+
+        # if we can't connect just log a warning and move on.
+        try:
+            r = requests.get(aurl, headers=myheaders, timeout=2)
+        except requests.exceptions.RequestException as e:
+            logging.warning(e)
+            continue
+
         logging.info("  %d" % r.status_code)
 
+        # disallow anything where r.history > 3 or r.url is not simply /ads.txt
+        if(len(r.history) > 3):
+            logging.warning("too many redirects")
+            continue
+
+        if (re.search('\/ads\.txt$', r.url) is None):
+            logging.warning("URL doesn't look look ads.txt")
+            continue
+
         if(r.status_code == 200):
+            # HTML content, probably a 404 with the wrong return code
+            if (re.search('(<html|<head|<script)', r.text) is not None):
+                logging.warning("looks like HTML, skipping")
+                continue
+
+            # some line should contain schema-appropriate results
+            if (re.search('^([^,]+,){2,3}?[^,]+$', r.text, re.MULTILINE) is None):
+                logging.warning("nothing schema appropriate, skipping")
+                continue
+            
             logging.debug("-------------")
             logging.debug(r.request.headers)
             logging.debug("-------------")
@@ -138,7 +165,9 @@ def crawl_to_db(conn, crawl_url_queue):
                 tmp_csv_file.write(r.text)
                 tmp_csv_file.close()
 
-            with open(tmpfile, 'rb') as tmp_csv_file:
+
+            # added 'U' for sites that return different newline chars
+            with open(tmpfile, 'rU') as tmp_csv_file:
                 #read the line, split on first comment and keep what is to the left (if any found)
                 line_reader = csv.reader(tmp_csv_file, delimiter='#', quotechar='|')
                 comment = ''
