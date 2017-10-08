@@ -55,8 +55,8 @@ import requests
 #
 #################################################################
 
-def process_row_to_db(conn, data_row, comment, hostname):
-    insert_stmt = "INSERT OR IGNORE INTO adstxt (SITE_DOMAIN, EXCHANGE_DOMAIN, SELLER_ACCOUNT_ID, ACCOUNT_TYPE, TAG_ID, ENTRY_COMMENT) VALUES (?, ?, ?, ?, ?, ? );"
+def process_row_to_db(conn, data_row, comment, hostname, adsystem_id):
+    insert_stmt = "INSERT OR IGNORE INTO adstxt (SITE_DOMAIN, EXCHANGE_DOMAIN, ADSYSTEM_DOMAIN, SELLER_ACCOUNT_ID, ACCOUNT_TYPE, TAG_ID, ENTRY_COMMENT) VALUES (?, ?, ?, ?, ?, ?, ? );"
     exchange_host     = ''
     seller_account_id = ''
     account_type      = ''
@@ -82,6 +82,9 @@ def process_row_to_db(conn, data_row, comment, hostname):
     if(len(exchange_host) < 3):
         data_valid = 0
 
+    if not isinstance(adsystem_id, int):
+        data_valid = 0
+
     # could be single digit integers
     if(len(seller_account_id) < 1):
         data_valid = 0
@@ -91,11 +94,11 @@ def process_row_to_db(conn, data_row, comment, hostname):
         data_valid = 0
 
     if(data_valid > 0):
-        logging.debug( "%s | %s | %s | %s | %s | %s" % (hostname, exchange_host, seller_account_id, account_type, tag_id, comment))
+        logging.debug( "%s | %s | %s | %s | %s | %s | %s" % (hostname, exchange_host, adsystem_id, seller_account_id, account_type, tag_id, comment))
 
         # Insert a row of data using bind variables (protect against sql injection)
         c = conn.cursor()
-        c.execute(insert_stmt, (hostname, exchange_host, seller_account_id, account_type, tag_id, comment))
+        c.execute(insert_stmt, (hostname, exchange_host, adsystem_id, seller_account_id, account_type, tag_id, comment))
 
         # Save (commit) the changes
         conn.commit()
@@ -165,10 +168,14 @@ def crawl_to_db(conn, crawl_url_queue):
                         if len(row) > 0 and row[0].startswith( '#' ):
                             continue
 
+                        if len(row) < 3:
+                            continue
+
                         if (len(line) > 1) and (len(line[1]) > 0):
                              comment = line[1]
 
-                        rowcnt = rowcnt + process_row_to_db(conn, row, comment, ahost)
+                        adsystem_id = fetch_adsystem_id(conn, row[0])
+                        rowcnt = rowcnt + process_row_to_db(conn, row, comment, ahost, adsystem_id)
 
     return rowcnt
 
@@ -226,6 +233,20 @@ def load_url_queue(csvfilename, url_queue):
 
 # end load_url_queue  #####
 
+#################################################################
+# FUNCTION fetch_adsystem_id
+#  fetch adsystem ID from 'adsystem_domain' table
+#
+#################################################################
+
+def fetch_adsystem_id(conn, adsystem_domain):
+    select_stmt = "SELECT ID FROM adsystem_domain WHERE DOMAIN=?"
+    c = conn.cursor()
+    c.execute(select_stmt, (adsystem_domain, ))
+    return c.fetchone()[0]
+
+# end fetch_adsystem_id  #####
+
 #### MAIN ####
 
 arg_parser = OptionParser()
@@ -269,4 +290,3 @@ print "Wrote %d records from %d URLs to %s" % (cnt_records, cnt_urls, options.ta
 
 logging.warning("Wrote %d records from %d URLs to %s" % (cnt_records, cnt_urls, options.target_database))
 logging.warning("Finished.")
-
