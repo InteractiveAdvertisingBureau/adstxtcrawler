@@ -22,10 +22,10 @@ The targets file can be a list of domains, URLs etc.  For each line the crawler 
 
 ``` bash
 $ cat target_domains.txt 
-#https://chicagotribune.com
-#http://latimes.com/sports
-#washingtonpost.com
-#http://nytimes.com/index.html
+https://chicagotribune.com
+http://latimes.com/sports
+washingtonpost.com
+http://nytimes.com/index.html
 localhosttribune.com
 ```
 
@@ -33,14 +33,9 @@ localhosttribune.com
 
 The project depends on these libraries and programs installed
 
-* Python 2 or better
-* Python HTTP Requests libary (pip install requests)
-* sqlite3
-
-Execute this command to install the DB table 
-``` bash
-$sqlite3 adstxt.db < adstxt_crawler.sql 
-```
+* Create a virtual environment `virtualenv venv`
+* Activate the virtual environment `source venv/bin/activate`
+* Install the dependencies `pip install -r requirements.txt`
 
 ## Running
 
@@ -48,7 +43,6 @@ The usual usage would be to pass a filename of target URLs and a filename of the
 
 ``` bash
 $ ./adstxt_crawler.py -t target_domains.txt -d adstxt.db
-Wrote 3 records from 1 URLs to adstxt.db
 ```
 
 Upon each run a sequence of entries in adstxt_crawler.log is created.
@@ -69,6 +63,7 @@ This is an example prototype crawler and would be suitable only for a very modes
 ## Contributors
 
 Initial author is Neal Richter (neal@hebbian.io)
+Mark Parolisi mark.parolisi@mailonline.com
 
 ## License
 

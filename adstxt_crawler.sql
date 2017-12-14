@@ -1,20 +1,22 @@
 BEGIN TRANSACTION;
+DROP TABLE IF EXISTS adstxt;
 
-CREATE TABLE IF NOT EXISTS adstxt(
+CREATE TABLE adstxt(
        SITE_DOMAIN                  TEXT    NOT NULL,
        EXCHANGE_DOMAIN              TEXT    NOT NULL,
-       ADSYSTEM_DOMAIN		    INTEGER     NOT NULL,
+       ADSYSTEM_DOMAIN		     INTEGER    NOT NULL,
        SELLER_ACCOUNT_ID            TEXT    NOT NULL,
        ACCOUNT_TYPE                 TEXT    NOT NULL,
        TAG_ID                       TEXT    NOT NULL,
        ENTRY_COMMENT                TEXT    NOT NULL,
-       UPDATED                      DATE    DEFAULT (datetime('now','localtime')),
+       UPDATED                      DATE    DEFAULT (datetime('now','utc')),
     PRIMARY KEY (SITE_DOMAIN,EXCHANGE_DOMAIN,SELLER_ACCOUNT_ID)
 );
 
 -- Contribution by Ian Trider
+DROP TABLE IF EXISTS adsystem_domain;
 
-CREATE TABLE IF NOT EXISTS "adsystem_domain" (
+CREATE TABLE "adsystem_domain" (
 	DOMAIN	TEXT,
 	ID	INTEGER,
 	PRIMARY KEY(DOMAIN,ID)
@@ -119,7 +121,8 @@ INSERT INTO `adsystem_domain` VALUES ('yahoo.com',68);
 INSERT INTO `adsystem_domain` VALUES ('yume.com',58);
 INSERT INTO `adsystem_domain` VALUES ('pixfuture.com',69);
 
-CREATE TABLE IF NOT EXISTS "adsystem" (
+DROP TABLE IF EXISTS adsystem;
+CREATE TABLE "adsystem" (
 	ID	INTEGER,
 	NAME	TEXT,
 	CANONICAL_DOMAIN	TEXT,
@@ -203,4 +206,3 @@ INSERT INTO `adsystem` VALUES (95,'PulsePoint',NULL);
 INSERT INTO `adsystem` VALUES (96,'District M',NULL);
 INSERT INTO `adsystem` VALUES (97,'Sharethrough',NULL);
 COMMIT;
-

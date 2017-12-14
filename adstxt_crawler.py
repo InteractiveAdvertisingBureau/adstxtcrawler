@@ -40,6 +40,7 @@
 ########################################################################################################
 
 import sys
+import os
 import csv
 import socket
 import sqlite3
@@ -47,27 +48,36 @@ import logging
 from optparse import OptionParser
 from urlparse import urlparse
 import requests
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-#################################################################
-# FUNCTION process_row_to_db.
-#  handle one row and push to the DB
-#
-#################################################################
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
 
 def process_row_to_db(conn, data_row, comment, hostname):
-    insert_stmt = "INSERT OR IGNORE INTO adstxt (SITE_DOMAIN, EXCHANGE_DOMAIN, SELLER_ACCOUNT_ID, ACCOUNT_TYPE, TAG_ID, ENTRY_COMMENT) VALUES (?, ?, ?, ?, ?, ? );"
+    """
+    Handle one row and push to the DB
+    """
+    c = conn.cursor()
+    insert_stmt = "INSERT OR IGNORE INTO adstxt (SITE_DOMAIN, EXCHANGE_DOMAIN, ADSYSTEM_DOMAIN, SELLER_ACCOUNT_ID, ACCOUNT_TYPE, TAG_ID, ENTRY_COMMENT) VALUES (?, ?, ?, ?, ?, ?, ? );"
     exchange_host = ''
+    adsystem_domain = 0
     seller_account_id = ''
     account_type = ''
     tag_id = ''
 
     if len(data_row) >= 3:
-        exchange_host = data_row[0].lower()
-        seller_account_id = data_row[1].lower()
-        account_type = data_row[2].lower()
+        exchange_host = data_row[0].lower().strip()
+        seller_account_id = data_row[1].lower().strip()
+        account_type = data_row[2].lower().strip()
+
+    c.execute("SELECT ID FROM adsystem_domain WHERE DOMAIN = '%s'" %
+              (exchange_host))
+    adsystem_domain_query = c.fetchone()
+    if adsystem_domain_query:
+        adsystem_domain = adsystem_domain_query[0]
 
     if len(data_row) == 4:
-        tag_id = data_row[3].lower()
+        tag_id = data_row[3].lower().strip()
 
     # data validation heurstics
     data_valid = 1
@@ -94,27 +104,26 @@ def process_row_to_db(conn, data_row, comment, hostname):
             hostname, exchange_host, seller_account_id, account_type, tag_id, comment))
 
         # Insert a row of data using bind variables (protect against sql injection)
-        c = conn.cursor()
-        c.execute(insert_stmt, (hostname, exchange_host,
-                                seller_account_id, account_type, tag_id, comment))
+        try:
+            c.execute(insert_stmt, (hostname, exchange_host, adsystem_domain,
+                                    seller_account_id, account_type, tag_id, comment))
 
-        # Save (commit) the changes
-        conn.commit()
+            conn.commit()
+        except sqlite3.OperationalError as err:
+            print(err)
+            print(insert_stmt)
+            print(hostname, exchange_host, adsystem_domain,
+                  seller_account_id, account_type, tag_id, comment)
+
         return 1
 
     return 0
 
-# end process_row_to_db  #####
-
-#################################################################
-# FUNCTION crawl_to_db.
-#  crawl the URLs, parse the data, validate and dump to a DB
-#
-#################################################################
-
 
 def crawl_to_db(conn, crawl_url_queue):
-
+    """
+    Crawl the URLs, parse the data, validate and dump to a DB
+    """
     rowcnt = 0
 
     myheaders = {
@@ -125,10 +134,10 @@ def crawl_to_db(conn, crawl_url_queue):
     for aurl in crawl_url_queue:
         ahost = crawl_url_queue[aurl]
         logging.info(" Crawling  %s : %s " % (aurl, ahost))
-        r = requests.get(aurl, headers=myheaders)
+        r = requests.get(aurl, headers=myheaders, verify=False)
         logging.info("  %d" % r.status_code)
 
-        if(r.status_code == 200):
+        if(r.status_code >= 200 & r.status_code < 400):
             logging.debug("-------------")
             logging.debug(r.request.headers)
             logging.debug("-------------")
@@ -137,7 +146,8 @@ def crawl_to_db(conn, crawl_url_queue):
 
             tmpfile = 'tmpads.txt'
             with open(tmpfile, 'wb') as tmp_csv_file:
-                tmp_csv_file.write(r.text)
+                text = r.text.encode('utf-8').strip()
+                tmp_csv_file.write(text)
                 tmp_csv_file.close()
 
             with open(tmpfile, 'rb') as tmp_csv_file:
@@ -175,18 +185,14 @@ def crawl_to_db(conn, crawl_url_queue):
                         rowcnt = rowcnt + \
                             process_row_to_db(conn, row, comment, ahost)
 
+            os.remove(tmpfile)
     return rowcnt
-
-# end crawl_to_db  #####
-
-#################################################################
-# FUNCTION load_url_queue
-#  Load the target set of URLs and reduce to an ads.txt domains queue
-#
-#################################################################
 
 
 def load_url_queue(csvfilename, url_queue):
+    """
+    Load the target set of URLs and reduce to an ads.txt domains queue
+    """
     cnt = 0
 
     with open(csvfilename, 'rb') as csvfile:
@@ -243,18 +249,17 @@ def set_log_file(log_level):
         log_level = logging.DEBUG
     logging.basicConfig(filename=file_name, level=log_level, format=log_format)
 
+
 def init_database(db_name, conn):
     """
     Setup the DB connection and seed with data if needed
     """
     conn = sqlite3.connect(db_name)
-    #conn.import('adstxt_carwler.sql')
+    conn.text_factory = lambda x: unicode(x, 'utf-8', 'ignore')
+    with open('adstxt_crawler.sql') as fp:
+        conn.cursor().executescript(fp.read())
 
     return conn
-
-
-
-#### MAIN ####
 
 
 if __name__ == '__main__':
@@ -282,11 +287,14 @@ if __name__ == '__main__':
         arg_parser.print_help()
         exit(1)
 
+    set_log_file(options.verbose)
+
     # Exit with help if no DB file passed
     if options.target_database and len(options.target_database) > 1:
         conn = init_database(options.target_database, conn)
     else:
-        print("%sMissing Database file name argument %s" % ('\033[91m', '\033[0m'))
+        print("%sMissing Database file name argument %s" %
+              ('\033[91m', '\033[0m'))
         arg_parser.print_help()
         exit(1)
 
@@ -294,21 +302,19 @@ if __name__ == '__main__':
     if options.target_filename and len(options.target_filename) > 1:
         cnt_urls = load_url_queue(options.target_filename, crawl_url_queue)
     else:
-        print("%sMissing target domains file name argument %s" % ('\033[91m', '\033[0m'))
+        print("%sMissing target domains file name argument %s" %
+              ('\033[91m', '\033[0m'))
         arg_parser.print_help()
         exit(1)
-
-    set_log_file(options.verbose)
 
     with conn:
         cnt_records = crawl_to_db(conn, crawl_url_queue)
         if(cnt_records > 0):
             conn.commit()
-        conn.close()
+    conn.close()
 
-    print("Wrote %d records from %d URLs to %s" % (cnt_records, cnt_urls, options.target_database))
+    print("%sWrote %d records from %d URLs to %s %s" %
+          ('\033[92m', cnt_records, cnt_urls, options.target_database, '\033[0m'))
 
     logging.warning("Wrote %d records from %d URLs to %s" %
                     (cnt_records, cnt_urls, options.target_database))
-
-    logging.warning("Finished.")
