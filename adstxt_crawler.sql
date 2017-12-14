@@ -1,7 +1,6 @@
 BEGIN TRANSACTION;
-DROP TABLE IF EXISTS adstxt;
 
-CREATE TABLE adstxt(
+CREATE TABLE IF NOT EXISTS adstxt(
        SITE_DOMAIN                  TEXT    NOT NULL,
        EXCHANGE_DOMAIN              TEXT    NOT NULL,
        ADSYSTEM_DOMAIN		    INTEGER     NOT NULL,
@@ -14,9 +13,8 @@ CREATE TABLE adstxt(
 );
 
 -- Contribution by Ian Trider
-DROP TABLE IF EXISTS adsystem_domain;
 
-CREATE TABLE "adsystem_domain" (
+CREATE TABLE IF NOT EXISTS "adsystem_domain" (
 	DOMAIN	TEXT,
 	ID	INTEGER,
 	PRIMARY KEY(DOMAIN,ID)
@@ -121,8 +119,7 @@ INSERT INTO `adsystem_domain` VALUES ('yahoo.com',68);
 INSERT INTO `adsystem_domain` VALUES ('yume.com',58);
 INSERT INTO `adsystem_domain` VALUES ('pixfuture.com',69);
 
-DROP TABLE IF EXISTS adsystem;
-CREATE TABLE "adsystem" (
+CREATE TABLE IF NOT EXISTS "adsystem" (
 	ID	INTEGER,
 	NAME	TEXT,
 	CANONICAL_DOMAIN	TEXT,

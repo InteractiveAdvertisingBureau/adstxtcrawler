@@ -3,6 +3,7 @@
 An example crawler for ads.txt files given a list of URLs or domains etc and saves them to a SQLite DB table.
 
 ## Usage Example
+
 ```
 Usage: adstxt_crawler.py [options]
 
@@ -14,6 +15,7 @@ Options:
                         Database to dump crawlered data into
   -v, --verbose         Increase verbosity (specify multiple times for more)
 ```
+
 ## Targets File 
 
 The targets file can be a list of domains, URLs etc.  For each line the crawler with extract the full hostname, validate it and cause a request to http://HOSTNAME/ads.txt
