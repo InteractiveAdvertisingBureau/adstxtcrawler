@@ -63,7 +63,9 @@ This is an example prototype crawler and would be suitable only for a very modes
 ## Contributors
 
 Initial author is Neal Richter (neal@hebbian.io)
-Mark Parolisi mark.parolisi@mailonline.com
+
+Additional contributors:
+* Mark Parolisi mark.parolisi@mailonline.com
 
 ## License
 
