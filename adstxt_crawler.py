@@ -45,7 +45,7 @@ import socket
 import sqlite3
 import logging
 from optparse import OptionParser
-from urlparse import urlparse
+from urllib.parse import urlparse
 #pip install requests
 import requests
 
@@ -134,11 +134,11 @@ def crawl_to_db(conn, crawl_url_queue):
             logging.debug("-------------")
 
             tmpfile = 'tmpads.txt'
-            with open(tmpfile, 'wb') as tmp_csv_file:
+            with open(tmpfile, 'wt') as tmp_csv_file:
                 tmp_csv_file.write(r.text)
                 tmp_csv_file.close()
 
-            with open(tmpfile, 'rb') as tmp_csv_file:
+            with open(tmpfile, 'rt') as tmp_csv_file:
                 #read the line, split on first comment and keep what is to the left (if any found)
                 line_reader = csv.reader(tmp_csv_file, delimiter='#', quotechar='|')
                 comment = ''
@@ -183,7 +183,7 @@ def crawl_to_db(conn, crawl_url_queue):
 def load_url_queue(csvfilename, url_queue):
     cnt = 0
 
-    with open(csvfilename, 'rb') as csvfile:
+    with open(csvfilename, 'rt') as csvfile:
         targets_reader = csv.reader(csvfile, delimiter=',', quotechar='|')
         for row in targets_reader:
 
@@ -204,7 +204,7 @@ def load_url_queue(csvfilename, url_queue):
             skip = 0
 
             try:
-                #print "Checking DNS: %s" % host
+                # print "Checking DNS: %s" % str(host)
                 ip = socket.gethostbyname(host)
 
                 if "127.0.0" in ip:
@@ -245,7 +245,7 @@ if len(sys.argv)==1:
 log_level = logging.WARNING # default
 if options.verbose == 1:
     log_level = logging.INFO
-elif options.verbose >= 2:
+elif options.verbose != 2:
     log_level = logging.DEBUG
 logging.basicConfig(filename='adstxt_crawler.log',level=log_level,format='%(asctime)s %(filename)s:%(lineno)d:%(levelname)s  %(message)s')
 
@@ -265,8 +265,7 @@ with conn:
         conn.commit()
     #conn.close()
 
-print "Wrote %d records from %d URLs to %s" % (cnt_records, cnt_urls, options.target_database)
+print("Wrote %r records from %r URLs to %r." % (cnt_records, cnt_urls, options.target_database))
 
 logging.warning("Wrote %d records from %d URLs to %s" % (cnt_records, cnt_urls, options.target_database))
 logging.warning("Finished.")
-
