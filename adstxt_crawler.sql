@@ -4,7 +4,7 @@ DROP TABLE IF EXISTS adstxt;
 CREATE TABLE adstxt(
        SITE_DOMAIN                  TEXT    NOT NULL,
        EXCHANGE_DOMAIN              TEXT    NOT NULL,
-       ADSYSTEM_DOMAIN		    INTEGER     NOT NULL,
+       ADSYSTEM_DOMAIN		    INTEGER     NOT NULL DEFAULT (0),
        SELLER_ACCOUNT_ID            TEXT    NOT NULL,
        ACCOUNT_TYPE                 TEXT    NOT NULL,
        TAG_ID                       TEXT    NOT NULL,
