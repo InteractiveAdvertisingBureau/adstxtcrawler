@@ -120,6 +120,8 @@ INSERT INTO `adsystem_domain` VALUES ('videoflare.com',67);
 INSERT INTO `adsystem_domain` VALUES ('yahoo.com',68);
 INSERT INTO `adsystem_domain` VALUES ('yume.com',58);
 INSERT INTO `adsystem_domain` VALUES ('pixfuture.com',69);
+INSERT INTO `adsystem_domain` VALUES ('sortable.com',92);
+INSERT INTO `adsystem_domain` VALUES ('deployads.com',92);
 
 DROP TABLE IF EXISTS adsystem;
 CREATE TABLE "adsystem" (
@@ -201,9 +203,9 @@ INSERT INTO `adsystem` VALUES (83,'TripleLift',NULL);
 INSERT INTO `adsystem` VALUES (84,'AppNexus','appnexus.com');
 INSERT INTO `adsystem` VALUES (86,'COMET',NULL);
 INSERT INTO `adsystem` VALUES (88,'One by AOL: Video','advertising.com');
+INSERT INTO `adsystem` VALUES (92,'Sortable','sortable.com');
 INSERT INTO `adsystem` VALUES (94,'Teads','teads.tv');
 INSERT INTO `adsystem` VALUES (95,'PulsePoint',NULL);
 INSERT INTO `adsystem` VALUES (96,'District M',NULL);
 INSERT INTO `adsystem` VALUES (97,'Sharethrough',NULL);
 COMMIT;
-
