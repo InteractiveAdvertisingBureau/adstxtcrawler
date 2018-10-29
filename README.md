@@ -16,7 +16,7 @@ Options:
 ```
 ## Targets File 
 
-The targets file can be a list of domains, URLs etc.  For each line the crawler with extract the full hostname, validate it and cause a request to http://HOSTNAME/ads.txt
+The targets file can be a list of domains, URLs etc.  For each, line the crawler will extract the full hostname, validate it, and cause a request to http://HOSTNAME/ads.txt
 
 ``` bash
 $ cat target_domains.txt 
