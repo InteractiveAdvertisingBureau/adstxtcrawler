@@ -1,5 +1,5 @@
 # Python packages needed
 # use your favorite package manager or run 
-# $brew install X
+# $pip install X
 requests
 pyopenssl
