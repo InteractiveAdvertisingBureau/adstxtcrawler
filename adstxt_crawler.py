@@ -64,6 +64,8 @@ from urlparse import urlparse
 import requests
 import re
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
+from datetime import datetime
+
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
@@ -89,7 +91,7 @@ def process_row_to_db(conn, data_row, comment, hostname, adsystem_id):
         tag_id            = data_row[3].lower().strip()
 
     #data validation heurstics
-    data_valid = 1  
+    data_valid = 1 
 
     # Minimum length of a domain name is 1 character, not including extensions.
     # Domain Name Rules - Nic AG
@@ -108,11 +110,12 @@ def process_row_to_db(conn, data_row, comment, hostname, adsystem_id):
         data_valid = 0
 
     # ads.txt supports 'DIRECT' and 'RESELLER'
-    if(len(account_type) < 6):
+    if (account_type not in ['direct', 'reseller']):
         data_valid = 0
 
     if(data_valid > 0):
-        logging.debug( "%s | %s | %s | %s | %s | %s | %s" % (hostname, exchange_host, adsystem_id, seller_account_id, account_type, tag_id, comment))
+        logging.debug( "%s | %s | %s | %s | %s | %s | %s" % 
+             (hostname, exchange_host, adsystem_id, seller_account_id, account_type, tag_id, comment))
 
         # Insert a row of data using bind variables (protect against sql injection)
         c = conn.cursor()
@@ -227,7 +230,12 @@ def crawl_to_db(conn, crawl_url_queue):
                         if (len(line) > 1) and (len(line[1]) > 0):
                              comment = line[1]
 
-                        adsystem_id = fetch_adsystem_id(conn, row[0])
+                        adsystem_domain = row[0].lower().strip()
+                        adsystem_id = fetch_adsystem_id(conn, adsystem_domain)
+
+                        if( not (adsystem_id > 0)):
+                            logging.warning("FIX unknown ADSYSTEM [%s][%s]" % (adsystem_domain, row[0]))
+
                         rowcnt = rowcnt + process_row_to_db(conn, row, comment, ahost, adsystem_id)
 
     return rowcnt
@@ -296,9 +304,31 @@ def fetch_adsystem_id(conn, adsystem_domain):
     select_stmt = "SELECT ID FROM adsystem_domain WHERE DOMAIN=?"
     c = conn.cursor()
     c.execute(select_stmt, (adsystem_domain, ))
-    return c.fetchone()[0]
+
+    id = 0
+    try:
+        id = c.fetchone()[0]
+    except: 
+        id = 0
+
+    return id
 
 # end fetch_adsystem_id  #####
+
+#################################################################
+# FUNCTION update_adsystem_domain
+#  update ADSYSTEM_DOMAIN
+#
+#################################################################
+
+def update_adsystem_domain():
+    update_stmt = "UPDATE ADSTXT SET ADSYSTEM_DOMAIN = (SELECT IFNULL(ID,0) FROM ADSYSTEM_DOMAIN WHERE ADSTXT.EXCHANGE_DOMAIN = ADSYSTEM_DOMAIN.DOMAIN) WHERE EXISTS (SELECT * FROM ADSYSTEM_DOMAIN WHERE ADSTXT.EXCHANGE_DOMAIN = ADSYSTEM_DOMAIN.DOMAIN);"
+    conn = sqlite3.connect(database, timeout=10)
+    with conn:
+        c = conn.cursor()
+        c.execute(update_stmt)
+
+# end update_adsystem_domain  #####
 
 #################################################################
 # FUNCTION set_log_file
@@ -367,6 +397,8 @@ if len(sys.argv)==1:
     arg_parser.print_help()
     exit(1)
 
+print options
+
 set_log_file(options.verbose)
 
 # Exit with help if no DB file passed
@@ -391,6 +423,8 @@ if (cnt_urls > 0) and options.target_database and (len(options.target_database) 
     conn = sqlite3.connect(options.target_database)
 
 with conn:
+
+    logging.warning("starting crawl, %d urls" % (cnt_urls))
     cnt_records = crawl_to_db(conn, crawl_url_queue)
     if(cnt_records > 0):
         conn.commit()
@@ -401,4 +435,4 @@ with conn:
           ('\033[92m', cnt_records, cnt_urls, options.target_database, '\033[0m'))
 
 logging.warning("Wrote %d records from %d URLs to %s" % (cnt_records, cnt_urls, options.target_database))
-logging.warning("Finished.")
+logging.warning("Finished crawl.")
