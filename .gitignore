@@ -1,0 +1,7 @@
+venv
+virtualenv
+.vscode
+adstxt.db
+adstxt_crawler.log
+target_domains.txt
+
