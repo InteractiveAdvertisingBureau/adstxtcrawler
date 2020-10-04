@@ -4,7 +4,7 @@ DROP TABLE IF EXISTS adstxt;
 CREATE TABLE adstxt(
        SITE_DOMAIN                  TEXT    NOT NULL,
        EXCHANGE_DOMAIN              TEXT    NOT NULL,
-       ADSYSTEM_DOMAIN		    INTEGER     NOT NULL,
+       ADSYSTEM_DOMAIN		    INTEGER     NOT NULL DEFAULT (0),
        SELLER_ACCOUNT_ID            TEXT    NOT NULL,
        ACCOUNT_TYPE                 TEXT    NOT NULL,
        TAG_ID                       TEXT    NOT NULL,
@@ -120,6 +120,20 @@ INSERT INTO `adsystem_domain` VALUES ('videoflare.com',67);
 INSERT INTO `adsystem_domain` VALUES ('yahoo.com',68);
 INSERT INTO `adsystem_domain` VALUES ('yume.com',58);
 INSERT INTO `adsystem_domain` VALUES ('pixfuture.com',69);
+INSERT INTO `adsystem_domain` VALUES ('advertising.com',70);
+INSERT INTO `adsystem_domain` VALUES ('kargo.com',71);
+INSERT INTO `adsystem_domain` VALUES ('aps.amazon.com',72);
+INSERT INTO `adsystem_domain` VALUES ('behave.com',73);
+INSERT INTO `adsystem_domain` VALUES ('engagebdr.com',74);
+INSERT INTO `adsystem_domain` VALUES ('my6sense.com',75);
+INSERT INTO `adsystem_domain` VALUES ('nobid.io',76);
+INSERT INTO `adsystem_domain` VALUES ('synacor.com',77);
+INSERT INTO `adsystem_domain` VALUES ('telaria.com',78);
+INSERT INTO `adsystem_domain` VALUES ('themediagrid.com',79);
+INSERT INTO `adsystem_domain` VALUES ('tribalfusion.com',80);
+INSERT INTO `adsystem_domain` VALUES ('undertone.com',81);
+INSERT INTO `adsystem_domain` VALUES ('sortable.com',82);
+INSERT INTO `adsystem_domain` VALUES ('deployads.com',83);
 
 DROP TABLE IF EXISTS adsystem;
 CREATE TABLE "adsystem" (
@@ -128,7 +142,7 @@ CREATE TABLE "adsystem" (
 	CANONICAL_DOMAIN	TEXT,
 	PRIMARY KEY(ID)
 );
-INSERT INTO `adsystem` VALUES (1,'Rubicon',NULL);
+INSERT INTO `adsystem` VALUES (1,'Rubicon',"rubiconproject.com");
 INSERT INTO `adsystem` VALUES (2,'33Across',NULL);
 INSERT INTO `adsystem` VALUES (3,'PubMatic','pubmatic.com');
 INSERT INTO `adsystem` VALUES (4,'OpenX','openx.com');
