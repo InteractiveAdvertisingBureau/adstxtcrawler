@@ -49,7 +49,8 @@
 # AntoineJac
 # markparolisi 
 # sean-mcmann
-#
+# Breza
+# miyaichi 
 ########################################################################################################
 
 import sys
@@ -63,9 +64,11 @@ from optparse import OptionParser
 from urlparse import urlparse
 import requests
 import re
+import tempfile
+import multiprocessing
+from multiprocessing import Pool
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from datetime import datetime
-
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
@@ -141,66 +144,61 @@ def process_row_to_db(conn, data_row, comment, hostname, adsystem_id):
 #
 #################################################################
 
-def crawl_to_db(conn, crawl_url_queue):
-
+def crawl_to_db(ahost, subdomain=False):
     rowcnt = 0
+    subdomains = []
+
+    logging.debug('crawl_to_db (%s)' % (ahost))
 
     myheaders = {
-            'User-Agent': 'AdsTxtCrawler/1.0; +https://github.com/InteractiveAdvertisingBureau/adstxtcrawler',
-            'Accept': 'text/plain',
-        }
+        'User-Agent':
+        'AdsTxtCrawler/1.0; +https://github.com/InteractiveAdvertisingBureau/adstxtcrawler',
+        'Accept':
+        'text/plain',
+    }
 
-    for aurl in crawl_url_queue:
-        ahost = crawl_url_queue[aurl]
-        logging.info(" Crawling  %s : %s " % (aurl, ahost))
+    # ads_txt_url = 'http://{thehost}/ads.txt'.format(thehost=host)
+    aurl = 'http://{thehost}/ads.txt'.format(thehost=ahost)
+    logging.info(' Crawling  %s : %s ' % (aurl, ahost))
 
-        # if we can't connect just log a warning and move on.
-        try:
-            r = requests.get(aurl, headers=myheaders, timeout=2, verify=False)
-        except requests.exceptions.RequestException as e:
-            logging.warning(e)
-            continue
+    accept = False
+    try:
+        r = requests.get(aurl, headers=myheaders, timeout=5)
+        logging.info('  %d' % r.status_code)
+        if (r.status_code == 200):
+            text = r.text.lower()
+            # ignore html file
+            if ('html' not in text and 'body' not in text and 'div' not in text
+                    and 'span' not in text):
+                accept = True
+    except:
+        pass
 
-        logging.info("  %d" % r.status_code)
+    if (accept):
+        # remove BOM and non ascii text
+        text = r.text.encode('utf_8')
+        text = text.decode('utf-8-sig').encode('utf_8')
+        text = re.sub(re.compile('[^\x20-\x7E\r\n]'), '', text)
 
-        # disallow anything where r.history > 3 or r.url is not simply /ads.txt
-        if(len(r.history) > 3):
-            logging.warning("too many redirects")
-            continue
+        logging.debug('-------------')
+        logging.debug(r.request.headers)
+        logging.debug('-------------')
+        logging.debug('%s' % text)
+        logging.debug('-------------')
 
-        if (re.search('\/ads\.txt$', r.url) is None):
-            logging.warning("URL doesn't look look ads.txt")
-            continue
+        with tempfile.NamedTemporaryFile(delete=False) as tmp_csv_file:
+            tmpfile = tmp_csv_file.name
+            tmp_csv_file.write(text)
 
-        if(r.status_code == 200):
-            # HTML content, probably a 404 with the wrong return code
-            if (re.search('(<html|<head|<script)', r.text) is not None):
-                logging.warning("looks like HTML, skipping")
-                continue
+        with open(tmpfile, 'rb') as tmp_csv_file:
+            # read the line, split on first comment and keep what is to the
+            # left (if any found)
+            line_reader = csv.reader(
+                tmp_csv_file, delimiter='#', quotechar='|')
+            comment = ''
 
-            # some line should contain schema-appropriate results
-            if (re.search('^([^,]+,){2,3}?[^,]+$', r.text, re.MULTILINE) is None):
-                logging.warning("nothing schema appropriate, skipping")
-                continue
-
-            logging.debug("-------------")
-            logging.debug(r.request.headers)
-            logging.debug("-------------")
-            logging.debug("%s" % r.text)
-            logging.debug("-------------")
-
-            tmpfile = 'tmpads.txt'
-            with open(tmpfile, 'wb') as tmp_csv_file:
-                r.encoding = 'utf-8'
-                tmp_csv_file.write(r.text.strip().encode('ascii', 'ignore').decode('ascii'))
-                tmp_csv_file.close()
-
-
-            # added 'U' for sites that return different newline chars
-            with open(tmpfile, 'rU') as tmp_csv_file:
-                #read the line, split on first comment and keep what is to the left (if any found)
-                line_reader = csv.reader(tmp_csv_file, delimiter='#', quotechar='|')
-                comment = ''
+            conn = sqlite3.connect(database, timeout=10)
+            with conn:
 
                 for line in line_reader:
                     logging.debug("DATA:  %s" % line)
@@ -227,6 +225,13 @@ def crawl_to_db(conn, crawl_url_queue):
                         if len(row) < 3:
                             continue
 
+                        if len(row) > 0 and row[0].startswith('subdomain'):
+                            s = row[0].split('=')
+                            if len(s) > 1:
+                                host = s[1].strip()
+                                logging.debug('SUBDOMAIN:  %s' % host)
+                                subdomains.append(host)
+
                         if (len(line) > 1) and (len(line[1]) > 0):
                              comment = line[1]
 
@@ -236,7 +241,13 @@ def crawl_to_db(conn, crawl_url_queue):
                         if( not (adsystem_id > 0)):
                             logging.warning("FIX unknown ADSYSTEM [%s][%s]" % (adsystem_domain, row[0]))
 
-                        rowcnt = rowcnt + process_row_to_db(conn, row, comment, ahost, adsystem_id)
+                        rowcnt += process_row_to_db(conn, row, comment, ahost, adsystem_id)
+
+        os.remove(tmpfile)
+
+    if not subdomain:
+        for ahost in subdomains:
+            rowcnt += crawl_to_db(ahost, subdomain=True)
 
     return rowcnt
 
@@ -287,8 +298,9 @@ def load_url_queue(csvfilename, url_queue):
             if(skip < 1):
                 ads_txt_url = 'http://{thehost}/ads.txt'.format(thehost=host).encode('utf-8')
                 logging.info("  pushing %s" % ads_txt_url)
-                url_queue[ads_txt_url] = host
-                cnt = cnt + 1
+                #url_queue[ads_txt_url] = host
+                url_queue.append(host)
+                cnt += 1
 
     return cnt
 
@@ -363,11 +375,18 @@ def init_database(db_name, conn):
     Setup the DB connection and seed with data if needed
     """
     conn = sqlite3.connect(db_name)
-    conn.text_factory = lambda x: unicode(x, 'utf-8', 'ignore')
-    with open('adstxt_crawler.sql') as fp:
-        conn.cursor().executescript(fp.read())
 
-    return conn
+    select_stmt = "SELECT count(*) FROM adsystem_domain"
+    c = conn.cursor()
+    c.execute(select_stmt)
+
+    cnt = 0
+    try:
+        cnt = c.fetchone()[0]
+    except: 
+        cnt = 0
+
+    return cnt
 
 # end init_database  #####
 
@@ -376,9 +395,11 @@ def init_database(db_name, conn):
 
 # Set default values for persistent data
 conn = None
-crawl_url_queue = {}
+#crawl_url_queue = {}
+crawl_url_queue = []
 cnt_urls = 0
 cnt_records = 0
+database = ""
 cnt_urls_processed = 0 # TBA
 
 
@@ -389,6 +410,9 @@ arg_parser.add_option("-d", "--database", dest="target_database",
                   help="Database to dump crawled data into", metavar="FILE")
 arg_parser.add_option("-v", "--verbose", dest="verbose", action='count',
                   help="Increase verbosity (specify multiple times for more)")
+arg_parser.add_option("-p", "--thread_pool", dest="num_threads", default=4,
+                  type="int", help="number of crawling threads to use")
+
 
 (options, args) = arg_parser.parse_args()
 
@@ -403,7 +427,14 @@ set_log_file(options.verbose)
 
 # Exit with help if no DB file passed
 if options.target_database and len(options.target_database) > 1:
-    conn = init_database(options.target_database, conn)
+    ret = init_database(options.target_database, conn)
+    if ret < 1:
+        print("%sMissing Database %s" %
+          ('\033[91m', '\033[0m'))
+        arg_parser.print_help()
+        exit(1)
+    database = options.target_database
+
 else:
     print("%sMissing Database file name argument %s" %
           ('\033[91m', '\033[0m'))
@@ -419,19 +450,30 @@ else:
     arg_parser.print_help()
     exit(1)
 
-if (cnt_urls > 0) and options.target_database and (len(options.target_database) > 1):
-    conn = sqlite3.connect(options.target_database)
+target = options.target_filename
 
-with conn:
+if (cnt_urls < 1) and not database and (len(database) < 1):
+    print("No Crawl")
+    logging.warning("No Crawl")
+    exit(1)
 
-    logging.warning("starting crawl, %d urls" % (cnt_urls))
-    cnt_records = crawl_to_db(conn, crawl_url_queue)
-    if(cnt_records > 0):
-        conn.commit()
-    #conn.close()
+if(options.num_threads > 1):
 
+    print("Thread Pool Crawl [%d]" % (options.num_threads))
+    logging.warning("Thread Pool Crawl [%d]", options.num_threads)
+    p = Pool(options.num_threads) #OR multiprocessing.cpu_count()
+    records = p.map(crawl_to_db, crawl_url_queue)
+    p.close
 
-    print("%sWrote %d records from %d URLs to %s %s" %
+    cnt_records = sum(records)
+else:
+    print("Single Threaded Crawl")
+    logging.warning("Single Threaded Crawl")
+
+    for row in crawl_url_queue:
+        cnt_records += crawl_to_db(ahost)
+
+print("%sWrote %d records from %d URLs to %s %s" %
           ('\033[92m', cnt_records, cnt_urls, options.target_database, '\033[0m'))
 
 logging.warning("Wrote %d records from %d URLs to %s" % (cnt_records, cnt_urls, options.target_database))
