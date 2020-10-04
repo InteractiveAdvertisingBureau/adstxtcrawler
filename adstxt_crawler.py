@@ -43,20 +43,29 @@
 # Hat Tips for code contributions
 # Ian Trider
 # jhpacker
-# brk212 
+# brk212
+# bradlucas
+# nag4
+# AntoineJac
+# markparolisi 
+# sean-mcmann
 #
 ########################################################################################################
 
 import sys
+import os
 import csv
 import socket
 import sqlite3
 import logging
 from optparse import OptionParser
+# OR from urllib.parse import urlparse
 from urlparse import urlparse
-#pip install requests
 import requests
 import re
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 #################################################################
 # FUNCTION process_row_to_db.
@@ -72,15 +81,15 @@ def process_row_to_db(conn, data_row, comment, hostname, adsystem_id):
     tag_id            = ''
 
     if len(data_row) >= 3:
-        exchange_host     = data_row[0].lower()
-        seller_account_id = data_row[1].lower()
-        account_type      = data_row[2].lower()
+        exchange_host     = data_row[0].lower().strip()
+        seller_account_id = data_row[1].lower().strip()
+        account_type      = data_row[2].lower().strip()
 
     if len(data_row) == 4:
-        tag_id            = data_row[3].lower()
+        tag_id            = data_row[3].lower().strip()
 
     #data validation heurstics
-    data_valid = 1;
+    data_valid = 1  
 
     # Minimum length of a domain name is 1 character, not including extensions.
     # Domain Name Rules - Nic AG
@@ -98,7 +107,7 @@ def process_row_to_db(conn, data_row, comment, hostname, adsystem_id):
     if(len(seller_account_id) < 1):
         data_valid = 0
 
-    ## ads.txt supports 'DIRECT' and 'RESELLER'
+    # ads.txt supports 'DIRECT' and 'RESELLER'
     if(len(account_type) < 6):
         data_valid = 0
 
@@ -107,10 +116,16 @@ def process_row_to_db(conn, data_row, comment, hostname, adsystem_id):
 
         # Insert a row of data using bind variables (protect against sql injection)
         c = conn.cursor()
-        c.execute(insert_stmt, (hostname, exchange_host, adsystem_id, seller_account_id, account_type, tag_id, comment))
+        try:
+            c.execute(insert_stmt, (hostname, exchange_host, adsystem_id, seller_account_id, account_type, tag_id, comment))
+            # Save (commit) the changes
+            conn.commit()
+        except sqlite3.OperationalError as err:
+            print(err)
+            print(insert_stmt)
+            print(hostname, exchange_host, adsystem_id,
+                  seller_account_id, account_type, tag_id, comment)
 
-        # Save (commit) the changes
-        conn.commit()
         return 1
 
     return 0
@@ -138,7 +153,7 @@ def crawl_to_db(conn, crawl_url_queue):
 
         # if we can't connect just log a warning and move on.
         try:
-            r = requests.get(aurl, headers=myheaders, timeout=2)
+            r = requests.get(aurl, headers=myheaders, timeout=2, verify=False)
         except requests.exceptions.RequestException as e:
             logging.warning(e)
             continue
@@ -164,7 +179,7 @@ def crawl_to_db(conn, crawl_url_queue):
             if (re.search('^([^,]+,){2,3}?[^,]+$', r.text, re.MULTILINE) is None):
                 logging.warning("nothing schema appropriate, skipping")
                 continue
-            
+
             logging.debug("-------------")
             logging.debug(r.request.headers)
             logging.debug("-------------")
@@ -174,7 +189,7 @@ def crawl_to_db(conn, crawl_url_queue):
             tmpfile = 'tmpads.txt'
             with open(tmpfile, 'wb') as tmp_csv_file:
                 r.encoding = 'utf-8'
-                tmp_csv_file.write(r.text.encode('ascii', 'ignore').decode('ascii'))
+                tmp_csv_file.write(r.text.strip().encode('ascii', 'ignore').decode('ascii'))
                 tmp_csv_file.close()
 
 
@@ -190,9 +205,9 @@ def crawl_to_db(conn, crawl_url_queue):
                     try:
                         data_line = line[0]
                     except:
-                        data_line = "";
+                        data_line = ""
 
-                    #determine delimiter, conservative = do it per row
+                    # determine delimiter, conservative = do it per row
                     if data_line.find(",") != -1:
                         data_delimiter = ','
                     elif data_line.find("\t") != -1:
@@ -203,7 +218,7 @@ def crawl_to_db(conn, crawl_url_queue):
                     data_reader = csv.reader([data_line], delimiter=',', quotechar='|')
                     for row in data_reader:
 
-                        if len(row) > 0 and row[0].startswith( '#' ):
+                        if len(row) > 0 and row[0].startswith('#'):
                             continue
 
                         if len(row) < 3:
@@ -232,28 +247,28 @@ def load_url_queue(csvfilename, url_queue):
         targets_reader = csv.reader(csvfile, delimiter=',', quotechar='|')
         for row in targets_reader:
 
-            if len(row) < 1 or row[0].startswith( '#' ):
+            if len(row) < 1 or row[0].startswith('#'):
                 continue
 
             for item in row:
                 host = "localhost"
 
-                if  "http:" in item or "https:" in item :
+                if "http:" in item or "https:" in item :
                     logging.info( "URL: %s" % item)
                     parsed_uri = urlparse(row[0])
                     host = parsed_uri.netloc
                 else:
                     host = item
-                    logging.info( "HOST: %s" % item)
+                    logging.info("HOST: %s" % item)
 
             skip = 0
 
             try:
-                #print "Checking DNS: %s" % host
+                #print "Checking DNS: %s" % str(host)
                 ip = socket.gethostbyname(host)
 
                 if "127.0.0" in ip:
-                    skip = 0 #swap to 1 to skip localhost testing
+                    skip = 0 # swap to 1 to skip localhost testing
                 elif "0.0.0.0" in ip:
                     skip = 1
                 else:
@@ -285,7 +300,57 @@ def fetch_adsystem_id(conn, adsystem_domain):
 
 # end fetch_adsystem_id  #####
 
+#################################################################
+# FUNCTION set_log_file
+# setup the log file
+#
+#################################################################
+
+def set_log_file(log_level):
+    """
+    Create a log file for the job
+    """
+    file_name = 'adstxt_crawler.log'
+    log_format = '%(asctime)s %(filename)s:%(lineno)d:%(levelname)s  %(message)s'
+    log_level = logging.WARNING
+    if log_level == 1:
+        log_level = logging.INFO
+    elif log_level != 2:
+        log_level = logging.DEBUG
+    logging.basicConfig(filename=file_name, level=log_level, format=log_format)
+
+# end set_log_file  #####
+
+
+#################################################################
+# FUNCTION init_database
+# initialize connection and test the DB is alive
+#
+#################################################################
+
+def init_database(db_name, conn):
+    """
+    Setup the DB connection and seed with data if needed
+    """
+    conn = sqlite3.connect(db_name)
+    conn.text_factory = lambda x: unicode(x, 'utf-8', 'ignore')
+    with open('adstxt_crawler.sql') as fp:
+        conn.cursor().executescript(fp.read())
+
+    return conn
+
+# end init_database  #####
+
 #### MAIN ####
+# if __name__ == '__main__': ???
+
+# Set default values for persistent data
+conn = None
+crawl_url_queue = {}
+cnt_urls = 0
+cnt_records = 0
+cnt_urls_processed = 0 # TBA
+
 
 arg_parser = OptionParser()
 arg_parser.add_option("-t", "--targets", dest="target_filename",
@@ -297,23 +362,30 @@ arg_parser.add_option("-v", "--verbose", dest="verbose", action='count',
 
 (options, args) = arg_parser.parse_args()
 
+# Exit with help info if no args passed
 if len(sys.argv)==1:
     arg_parser.print_help()
     exit(1)
 
-log_level = logging.WARNING # default
-if options.verbose == 1:
-    log_level = logging.INFO
-elif options.verbose >= 2:
-    log_level = logging.DEBUG
-logging.basicConfig(filename='adstxt_crawler.log',level=log_level,format='%(asctime)s %(filename)s:%(lineno)d:%(levelname)s  %(message)s')
+set_log_file(options.verbose)
 
-crawl_url_queue = {}
-conn = None
-cnt_urls = 0
-cnt_records = 0
+# Exit with help if no DB file passed
+if options.target_database and len(options.target_database) > 1:
+    conn = init_database(options.target_database, conn)
+else:
+    print("%sMissing Database file name argument %s" %
+          ('\033[91m', '\033[0m'))
+    arg_parser.print_help()
+    exit(1)
 
-cnt_urls = load_url_queue(options.target_filename, crawl_url_queue)
+# Exit with help if no target domains file passed
+if options.target_filename and len(options.target_filename) > 1:
+    cnt_urls = load_url_queue(options.target_filename, crawl_url_queue)
+else:
+    print("%sMissing target domains file name argument %s" %
+          ('\033[91m', '\033[0m'))
+    arg_parser.print_help()
+    exit(1)
 
 if (cnt_urls > 0) and options.target_database and (len(options.target_database) > 1):
     conn = sqlite3.connect(options.target_database)
@@ -324,7 +396,9 @@ with conn:
         conn.commit()
     #conn.close()
 
-print "Wrote %d records from %d URLs to %s" % (cnt_records, cnt_urls, options.target_database)
+
+    print("%sWrote %d records from %d URLs to %s %s" %
+          ('\033[92m', cnt_records, cnt_urls, options.target_database, '\033[0m'))
 
 logging.warning("Wrote %d records from %d URLs to %s" % (cnt_records, cnt_urls, options.target_database))
 logging.warning("Finished.")

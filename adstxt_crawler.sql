@@ -9,7 +9,7 @@ CREATE TABLE adstxt(
        ACCOUNT_TYPE                 TEXT    NOT NULL,
        TAG_ID                       TEXT    NOT NULL,
        ENTRY_COMMENT                TEXT    NOT NULL,
-       UPDATED                      DATE    DEFAULT (datetime('now','localtime')),
+       UPDATED                      DATE    DEFAULT (datetime('now','utc')),
     PRIMARY KEY (SITE_DOMAIN,EXCHANGE_DOMAIN,SELLER_ACCOUNT_ID)
 );
 
