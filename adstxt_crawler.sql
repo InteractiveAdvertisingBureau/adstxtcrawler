@@ -133,7 +133,7 @@ INSERT INTO `adsystem_domain` VALUES ('themediagrid.com',79);
 INSERT INTO `adsystem_domain` VALUES ('tribalfusion.com',80);
 INSERT INTO `adsystem_domain` VALUES ('undertone.com',81);
 INSERT INTO `adsystem_domain` VALUES ('sortable.com',82);
-INSERT INTO `adsystem_domain` VALUES ('deployads.com',83);
+INSERT INTO `adsystem_domain` VALUES ('deployads.com',82);
 
 DROP TABLE IF EXISTS adsystem;
 CREATE TABLE "adsystem" (
@@ -211,6 +211,7 @@ INSERT INTO `adsystem` VALUES (67,'Videoflare',NULL);
 INSERT INTO `adsystem` VALUES (68,'Yahoo Ad Exchange',NULL);
 INSERT INTO `adsystem` VALUES (69,'PixFuture',NULL);
 INSERT INTO `adsystem` VALUES (77,'Tremor',NULL);
+INSERT INTO `adsystem` VALUES (82,'Sortable','sortable.com');
 INSERT INTO `adsystem` VALUES (83,'TripleLift',NULL);
 INSERT INTO `adsystem` VALUES (84,'AppNexus','appnexus.com');
 INSERT INTO `adsystem` VALUES (86,'COMET',NULL);
