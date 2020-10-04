@@ -162,7 +162,8 @@ def crawl_to_db(conn, crawl_url_queue):
 
             tmpfile = 'tmpads.txt'
             with open(tmpfile, 'wb') as tmp_csv_file:
-                tmp_csv_file.write(r.text)
+                r.encoding = 'utf-8'
+                tmp_csv_file.write(r.text.encode('ascii', 'ignore').decode('ascii'))
                 tmp_csv_file.close()
 
 
@@ -212,7 +213,7 @@ def crawl_to_db(conn, crawl_url_queue):
 def load_url_queue(csvfilename, url_queue):
     cnt = 0
 
-    with open(csvfilename, 'rb') as csvfile:
+    with open(csvfilename, 'rU') as csvfile:
         targets_reader = csv.reader(csvfile, delimiter=',', quotechar='|')
         for row in targets_reader:
 
@@ -246,7 +247,7 @@ def load_url_queue(csvfilename, url_queue):
                 skip = 1
 
             if(skip < 1):
-                ads_txt_url = 'http://{thehost}/ads.txt'.format(thehost=host)
+                ads_txt_url = 'http://{thehost}/ads.txt'.format(thehost=host).encode('utf-8')
                 logging.info("  pushing %s" % ads_txt_url)
                 url_queue[ads_txt_url] = host
                 cnt = cnt + 1
