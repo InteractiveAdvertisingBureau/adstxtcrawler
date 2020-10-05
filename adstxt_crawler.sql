@@ -1,4 +1,5 @@
 BEGIN TRANSACTION;
+
 DROP TABLE IF EXISTS adstxt;
 
 CREATE TABLE adstxt(
@@ -13,7 +14,26 @@ CREATE TABLE adstxt(
     PRIMARY KEY (SITE_DOMAIN,EXCHANGE_DOMAIN,SELLER_ACCOUNT_ID)
 );
 
--- Contribution by Ian Trider
+DROP TABLE IF EXISTS adstxt_contentdistributor;
+
+CREATE TABLE adstxt_contentdistributor(
+       SITE_DOMAIN                  TEXT    NOT NULL,
+       DISTRIBUTOR_DOMAIN           TEXT    NOT NULL,
+       ENTRY_COMMENT                TEXT    NOT NULL,
+       UPDATED                      DATE    DEFAULT (datetime('now','utc')),
+    PRIMARY KEY (SITE_DOMAIN,DISTRIBUTOR_DOMAIN)
+);
+
+DROP TABLE IF EXISTS adstxt_contentproducer;
+
+CREATE TABLE adstxt_contentproducer(
+       SITE_DOMAIN                  TEXT    NOT NULL,
+       PRODUCER_DOMAIN              TEXT    NOT NULL,
+       ENTRY_COMMENT                TEXT    NOT NULL,
+       UPDATED                      DATE    DEFAULT (datetime('now','utc')),
+    PRIMARY KEY (SITE_DOMAIN,PRODUCER_DOMAIN)
+);
+
 DROP TABLE IF EXISTS adsystem_domain;
 
 CREATE TABLE "adsystem_domain" (
@@ -21,6 +41,7 @@ CREATE TABLE "adsystem_domain" (
 	ID	INTEGER,
 	PRIMARY KEY(DOMAIN,ID)
 );
+
 INSERT INTO `adsystem_domain` VALUES ('adtech.com',11);
 INSERT INTO `adsystem_domain` VALUES ('aolcloud.net',11);
 INSERT INTO `adsystem_domain` VALUES ('appnexus.com',84);
@@ -135,6 +156,10 @@ INSERT INTO `adsystem_domain` VALUES ('undertone.com',81);
 INSERT INTO `adsystem_domain` VALUES ('sortable.com',82);
 INSERT INTO `adsystem_domain` VALUES ('deployads.com',82);
 
+INSERT INTO `adsystem_domain` VALUES ('green_ssp.com',1001);
+INSERT INTO `adsystem_domain` VALUES ('violet_ssp.com',1002);
+INSERT INTO `adsystem_domain` VALUES ('grey_ssp.com',1003);
+
 DROP TABLE IF EXISTS adsystem;
 CREATE TABLE "adsystem" (
 	ID	INTEGER,
@@ -220,5 +245,10 @@ INSERT INTO `adsystem` VALUES (94,'Teads','teads.tv');
 INSERT INTO `adsystem` VALUES (95,'PulsePoint',NULL);
 INSERT INTO `adsystem` VALUES (96,'District M',NULL);
 INSERT INTO `adsystem` VALUES (97,'Sharethrough',NULL);
+
+INSERT INTO `adsystem` VALUES (1001,'Green SSP (Demo)','green_ssp.com');
+INSERT INTO `adsystem` VALUES (1002,'Violet SSP (Demo)','violet_ssp.com');
+INSERT INTO `adsystem` VALUES (1003,'Grey SSP (Demo)','grey_ssp.com');
+
 COMMIT;
 
