@@ -4,7 +4,7 @@
 # Copyright 2017 Hebbian Labs, LLC
 # Copyright 2017 IAB TechLab & OpenRTB Group
 #
-# Author: Neal Richter, neal@hebbian.io
+# Maintainer: Neal Richter, neal@spotx.tv or nrichter@gmail.com
 #
 # Redistribution and use in source and binary forms, with or without modification, are permitted provided
 # that the following conditions are met:
@@ -73,17 +73,18 @@ from datetime import datetime
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 #################################################################
-# FUNCTION process_row_to_db.
+# FUNCTION process_adstxt_row_to_db.
 #  handle one row and push to the DB
 #
 #################################################################
 
-def process_row_to_db(conn, data_row, comment, hostname, adsystem_id):
+def process_adstxt_row_to_db(conn, data_row, comment, hostname, adsystem_id):
     insert_stmt = "INSERT OR IGNORE INTO adstxt (SITE_DOMAIN, EXCHANGE_DOMAIN, ADSYSTEM_DOMAIN, SELLER_ACCOUNT_ID, ACCOUNT_TYPE, TAG_ID, ENTRY_COMMENT) VALUES (?, ?, ?, ?, ?, ?, ? );"
     exchange_host     = ''
     seller_account_id = ''
     account_type      = ''
     tag_id            = ''
+    sql_rows  = 0
 
     if len(data_row) >= 3:
         exchange_host     = data_row[0].lower().strip()
@@ -126,17 +127,71 @@ def process_row_to_db(conn, data_row, comment, hostname, adsystem_id):
             c.execute(insert_stmt, (hostname, exchange_host, adsystem_id, seller_account_id, account_type, tag_id, comment))
             # Save (commit) the changes
             conn.commit()
+            if(c.rowcount > 0):
+                sql_rows = c.rowcount
         except sqlite3.OperationalError as err:
             print(err)
             print(insert_stmt)
             print(hostname, exchange_host, adsystem_id,
                   seller_account_id, account_type, tag_id, comment)
 
-        return 1
 
-    return 0
+    return sql_rows
 
-# end process_row_to_db  #####
+# end process_adstxt_row_to_db  #####
+
+#################################################################
+# FUNCTION process_contentdirective_row_to_db.
+#  handle one row and push to the DB
+#
+#################################################################
+
+def process_contentdirective_row_to_db(conn, case, site_hostname, rhs_hostname, comment):
+    insert_stmt = ""
+    sql_rows = 0
+
+    site_hostname = site_hostname.lower().strip()
+    rhs_hostname  = rhs_hostname.lower().strip()
+
+    data_valid = 1 
+
+    # Minimum length of a domain name is 1 character, not including extensions.
+    # Domain Name Rules - Nic AG
+    # www.nic.ag/rules.htm
+    if(len(site_hostname) < 3):
+        data_valid = 0
+
+    if(len(rhs_hostname) < 3):
+        data_valid = 0
+
+    if(case == 'cd'):
+        insert_stmt = "INSERT OR IGNORE INTO adstxt_contentdistributor (SITE_DOMAIN, DISTRIBUTOR_DOMAIN, ENTRY_COMMENT) VALUES (?, ?, ?);"
+    elif(case == 'cp'):
+        insert_stmt = "INSERT OR IGNORE INTO adstxt_contentproducer (SITE_DOMAIN, PRODUCER_DOMAIN, ENTRY_COMMENT) VALUES (?, ?, ?);"
+    else:
+        data_valid = 0
+
+    if(data_valid > 0):
+        logging.debug( "%s | %s | %s | %s " % 
+             (case, site_hostname, rhs_hostname, comment))
+
+        # Insert a row of data using bind variables (protect against sql injection)
+        c = conn.cursor()
+        try:
+            c.execute(insert_stmt, (site_hostname, rhs_hostname, comment))
+            # Save (commit) the changes
+            conn.commit()
+            if(c.rowcount > 0):
+                sql_rows = c.rowcount
+        except sqlite3.OperationalError as err:
+            print(err)
+            print(insert_stmt)
+            print(case, site_hostname, rhs_hostname, comment)
+
+    return sql_rows
+
+# end process_adstxt_row_to_db  #####
+
 
 #################################################################
 # FUNCTION crawl_to_db.
@@ -144,9 +199,9 @@ def process_row_to_db(conn, data_row, comment, hostname, adsystem_id):
 #
 #################################################################
 
-def crawl_to_db(ahost, subdomain=False):
+def crawl_to_db(ahost, referral_domain=False):
     rowcnt = 0
-    subdomains = []
+    referral_domains = []
 
     logging.debug('crawl_to_db (%s)' % (ahost))
 
@@ -209,28 +264,48 @@ def crawl_to_db(ahost, subdomain=False):
                         data_line = ""
 
                     # determine delimiter, conservative = do it per row
-                    if data_line.find(",") != -1:
-                        data_delimiter = ','
-                    elif data_line.find("\t") != -1:
+                    data_delimiter = ','
+                    if data_line.find("\t") != -1:
                         data_delimiter = '\t'
-                    else:
-                        data_delimiter = ' '
 
-                    data_reader = csv.reader([data_line], delimiter=',', quotechar='|')
+                    data_reader = csv.reader([data_line], delimiter=data_delimiter, quotechar='|')
                     for row in data_reader:
 
                         if len(row) > 0 and row[0].startswith('#'):
                             continue
 
+                        directive_pattern = 'domain='
+                        if ( len(row) > 0 and directive_pattern in row[0].lower() ):
+                            logging.debug('DIRECTIVE [%s]' % row)
+                            s = row[0].lower().split('=')
+                            rhs_host = ''
+                            comment  = ''
+                            if len(s) > 1:
+                                lhs = s[0].strip()
+                                rhs = s[1].strip().split('#')
+
+                                if(len(rhs) > 0):
+                                    rhs_host = rhs[0].strip().lower()
+                                if(len(rhs) > 1):
+                                    comment  = rhs[1].strip()
+
+                                if(lhs.startswith('subdomain')):
+                                    logging.debug('DIRECTIVE subdomain:[%s]' % rhs_host)
+                                    referral_domains.append(rhs_host)
+
+                                elif(lhs.startswith('contentproducerdomain')):
+                                    logging.debug("DIRECTIVE contentproducerdomain [%s][%s]" % (ahost, rhs_host))
+                                    referral_domains.append(rhs_host)
+                                    rowcnt += process_contentdirective_row_to_db(conn, 'cp', ahost, rhs_host, comment)
+
+                                elif(lhs.startswith('contentdistributordomain')):
+                                    logging.debug("contentdistributordomain [%s][%s]" % (ahost, rhs_host))
+                                    referral_domains.append(rhs_host)
+                                    rowcnt += process_contentdirective_row_to_db(conn, 'cd', ahost, rhs_host, comment)
+
+                        #skip row if it's not at least 3 fields
                         if len(row) < 3:
                             continue
-
-                        if len(row) > 0 and row[0].startswith('subdomain'):
-                            s = row[0].split('=')
-                            if len(s) > 1:
-                                host = s[1].strip()
-                                logging.debug('SUBDOMAIN:  %s' % host)
-                                subdomains.append(host)
 
                         if (len(line) > 1) and (len(line[1]) > 0):
                              comment = line[1]
@@ -241,13 +316,13 @@ def crawl_to_db(ahost, subdomain=False):
                         if( not (adsystem_id > 0)):
                             logging.warning("FIX unknown ADSYSTEM [%s][%s]" % (adsystem_domain, row[0]))
 
-                        rowcnt += process_row_to_db(conn, row, comment, ahost, adsystem_id)
+                        rowcnt += process_adstxt_row_to_db(conn, row, comment, ahost, adsystem_id)
 
         os.remove(tmpfile)
 
-    if not subdomain:
-        for ahost in subdomains:
-            rowcnt += crawl_to_db(ahost, subdomain=True)
+    if not referral_domain:
+        for ahost in referral_domains:
+            rowcnt += crawl_to_db(ahost, referral_domain=True)
 
     return rowcnt
 
