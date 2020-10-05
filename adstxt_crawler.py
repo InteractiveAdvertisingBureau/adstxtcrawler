@@ -165,9 +165,9 @@ def process_contentdirective_row_to_db(conn, case, site_hostname, rhs_hostname, 
         data_valid = 0
 
     if(case == 'cd'):
-        insert_stmt = "INSERT OR IGNORE INTO adstxt_contentdistributor (SITE_DOMAIN, DISTRIBUTOR_DOMAIN, ENTRY_COMMENT) VALUES (?, ?, ?);"
+        insert_stmt = "INSERT OR IGNORE INTO adstxt_contentdistributor (SITE_DOMAIN, PRODUCER_DOMAIN, ENTRY_COMMENT) VALUES (?, ?, ?);"
     elif(case == 'cp'):
-        insert_stmt = "INSERT OR IGNORE INTO adstxt_contentproducer (SITE_DOMAIN, PRODUCER_DOMAIN, ENTRY_COMMENT) VALUES (?, ?, ?);"
+        insert_stmt = "INSERT OR IGNORE INTO adstxt_contentproducer (SITE_DOMAIN, DISTRIBUTOR_DOMAIN, ENTRY_COMMENT) VALUES (?, ?, ?);"
     else:
         data_valid = 0
 
@@ -296,12 +296,12 @@ def crawl_to_db(ahost, referral_domain=False):
                                 elif(lhs.startswith('contentproducerdomain')):
                                     logging.debug("DIRECTIVE contentproducerdomain [%s][%s]" % (ahost, rhs_host))
                                     referral_domains.append(rhs_host)
-                                    rowcnt += process_contentdirective_row_to_db(conn, 'cp', ahost, rhs_host, comment)
+                                    rowcnt += process_contentdirective_row_to_db(conn, 'cd', ahost, rhs_host, comment)
 
                                 elif(lhs.startswith('contentdistributordomain')):
                                     logging.debug("contentdistributordomain [%s][%s]" % (ahost, rhs_host))
                                     referral_domains.append(rhs_host)
-                                    rowcnt += process_contentdirective_row_to_db(conn, 'cd', ahost, rhs_host, comment)
+                                    rowcnt += process_contentdirective_row_to_db(conn, 'cp', ahost, rhs_host, comment)
 
                         #skip row if it's not at least 3 fields
                         if len(row) < 3:

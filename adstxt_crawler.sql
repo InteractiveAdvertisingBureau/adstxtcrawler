@@ -18,20 +18,20 @@ DROP TABLE IF EXISTS adstxt_contentdistributor;
 
 CREATE TABLE adstxt_contentdistributor(
        SITE_DOMAIN                  TEXT    NOT NULL,
-       DISTRIBUTOR_DOMAIN           TEXT    NOT NULL,
+       PRODUCER_DOMAIN           TEXT    NOT NULL,
        ENTRY_COMMENT                TEXT    NOT NULL,
        UPDATED                      DATE    DEFAULT (datetime('now','utc')),
-    PRIMARY KEY (SITE_DOMAIN,DISTRIBUTOR_DOMAIN)
+    PRIMARY KEY (SITE_DOMAIN,PRODUCER_DOMAIN)
 );
 
 DROP TABLE IF EXISTS adstxt_contentproducer;
 
 CREATE TABLE adstxt_contentproducer(
        SITE_DOMAIN                  TEXT    NOT NULL,
-       PRODUCER_DOMAIN              TEXT    NOT NULL,
+       DISTRIBUTOR_DOMAIN              TEXT    NOT NULL,
        ENTRY_COMMENT                TEXT    NOT NULL,
        UPDATED                      DATE    DEFAULT (datetime('now','utc')),
-    PRIMARY KEY (SITE_DOMAIN,PRODUCER_DOMAIN)
+    PRIMARY KEY (SITE_DOMAIN,DISTRIBUTOR_DOMAIN)
 );
 
 DROP TABLE IF EXISTS adsystem_domain;
@@ -41,6 +41,8 @@ CREATE TABLE "adsystem_domain" (
 	ID	INTEGER,
 	PRIMARY KEY(DOMAIN,ID)
 );
+
+--  VALUES BELOW
 
 INSERT INTO `adsystem_domain` VALUES ('adtech.com',11);
 INSERT INTO `adsystem_domain` VALUES ('aolcloud.net',11);
