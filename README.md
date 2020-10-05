@@ -66,7 +66,19 @@ This is an example prototype crawler and would be suitable only for a very modes
 
 ## Contributors
 
-Initial author is Neal Richter (neal@hebbian.io)
+Maintainer: Neal Richter, neal@spotx.tv or nrichter@gmail.com
+
+Contributors (GitHub.com account names)
+iantri
+jhpacker
+brk212
+bradlucas
+nag4
+AntoineJac
+markparolisi 
+sean-mcmann
+Breza
+miyaichi 
 
 ## License
 
