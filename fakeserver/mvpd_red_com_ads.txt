@@ -1,0 +1,5 @@
+#ads.txt for mvpd_red.com App
+green_ssp.com,34354,DIRECT,2f5732fd30df865f
+violet_ssp.com,19253,DIRECT,943daa6c342aa0bf
+contentproducerdomain=content_blue.com
+contentproducerdomain=content_yellow.com

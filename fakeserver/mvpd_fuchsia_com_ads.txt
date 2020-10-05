@@ -1,0 +1,5 @@
+#ads.txt for mvpd_fuchia.com App
+grey_ssp.com,88369,DIRECT,e24a872f63d1cd90
+green_ssp.com,01951,DIRECT,700272a9a0a23a9
+contentproducerdomain=content_blue.com
+contentproducerdomain=content_yellow.com

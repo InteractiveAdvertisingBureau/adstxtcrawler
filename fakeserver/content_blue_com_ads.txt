@@ -1,0 +1,4 @@
+#ads.txt for content_blue.com CTV Channel and App
+green_ssp.com,70922,DIRECT,5806bae69b12fafd
+violet_ssp.com,29904,DIRECT,7db42ea7de93e497
+contentdistributordomain=mvpd_red.com
