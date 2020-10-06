@@ -79,7 +79,7 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 #################################################################
 
 def process_adstxt_row_to_db(conn, data_row, comment, hostname, adsystem_id):
-    insert_stmt = "INSERT OR IGNORE INTO adstxt (SITE_DOMAIN, EXCHANGE_DOMAIN, ADSYSTEM_DOMAIN, SELLER_ACCOUNT_ID, ACCOUNT_TYPE, TAG_ID, ENTRY_COMMENT) VALUES (?, ?, ?, ?, ?, ?, ? );"
+    insert_stmt = "INSERT OR REPLACE INTO adstxt (SITE_DOMAIN, EXCHANGE_DOMAIN, ADSYSTEM_DOMAIN, SELLER_ACCOUNT_ID, ACCOUNT_TYPE, TAG_ID, ENTRY_COMMENT) VALUES (?, ?, ?, ?, ?, ?, ? );"
     exchange_host     = ''
     seller_account_id = ''
     account_type      = ''
@@ -165,9 +165,9 @@ def process_contentdirective_row_to_db(conn, case, site_hostname, rhs_hostname, 
         data_valid = 0
 
     if(case == 'cd'):
-        insert_stmt = "INSERT OR IGNORE INTO adstxt_contentdistributor (SITE_DOMAIN, PRODUCER_DOMAIN, ENTRY_COMMENT) VALUES (?, ?, ?);"
+        insert_stmt = "INSERT OR REPLACE INTO adstxt_contentdistributor (SITE_DOMAIN, PRODUCER_DOMAIN, ENTRY_COMMENT) VALUES (?, ?, ?);"
     elif(case == 'cp'):
-        insert_stmt = "INSERT OR IGNORE INTO adstxt_contentproducer (SITE_DOMAIN, DISTRIBUTOR_DOMAIN, ENTRY_COMMENT) VALUES (?, ?, ?);"
+        insert_stmt = "INSERT OR REPLACE INTO adstxt_contentproducer (SITE_DOMAIN, DISTRIBUTOR_DOMAIN, ENTRY_COMMENT) VALUES (?, ?, ?);"
     else:
         data_valid = 0
 
