@@ -496,7 +496,7 @@ if len(sys.argv)==1:
     arg_parser.print_help()
     exit(1)
 
-print options
+print(options)
 
 set_log_file(options.verbose)
 
