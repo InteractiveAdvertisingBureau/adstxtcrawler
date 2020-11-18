@@ -245,7 +245,7 @@ def crawl_to_db(ahost, referral_domain=False):
             tmpfile = tmp_csv_file.name
             tmp_csv_file.write(text)
 
-        with open(tmpfile, 'rb') as tmp_csv_file:
+        with open(tmpfile, 'rU') as tmp_csv_file:
             # read the line, split on first comment and keep what is to the
             # left (if any found)
             line_reader = csv.reader(
