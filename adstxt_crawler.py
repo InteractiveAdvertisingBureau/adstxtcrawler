@@ -545,7 +545,7 @@ else:
     print("Single Threaded Crawl")
     logging.warning("Single Threaded Crawl")
 
-    for row in crawl_url_queue:
+    for ahost in crawl_url_queue:
         cnt_records += crawl_to_db(ahost)
 
 print("%sWrote %d records from %d URLs to %s %s" %
