@@ -16,15 +16,15 @@ Options:
 ```
 ## Targets File 
 
-The targets file can be a list of domains, URLs etc.  For each, line the crawler will extract the full hostname, validate it, and cause a request to http://HOSTNAME/ads.txt
+The targets file can be a list of domains, URLs etc.  For each, line the crawler will extract the full hostname, validate it, and cause a request to https://vnads.net/ads.txt
 
 ``` bash
 $ cat target_domains.txt 
 #https://chicagotribune.com
 #http://latimes.com/sports
 #washingtonpost.com
-#http://nytimes.com/index.html
-localhosttribune.com
+#https://www.vnads.net/index.html
+www.vnads.net
 ```
 
 ## Installation
